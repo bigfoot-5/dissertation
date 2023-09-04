@@ -1,0 +1,8 @@
+prefix=/home/karthik/ur5_ws/devel
+
+Name: ur5_demo
+Description: Description of ur5_demo
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

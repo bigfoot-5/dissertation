@@ -1,0 +1,8 @@
+prefix=/home/karthik/ur5_ws/install
+
+Name: robotiq
+Description: Description of robotiq
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
