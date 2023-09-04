@@ -1,0 +1,224 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+  <!--
+    Main xacro macro definition of the "Gazebo robot" model.
+
+    This wraps the model of the real robot and adds all elements and parameters
+    required by Gazebo.
+
+    It also adds the gazebo_ros_control plugin.
+
+    NOTE: this is NOT a URDF. It cannot directly be loaded by consumers
+    expecting a flattened '.urdf' file. See the top-level '.xacro' for that
+    (but note: that .xacro must still be processed by the xacro command).
+
+    For use in '.launch' files: use one of the 'load_urX.launch' convenience
+    launch files.
+
+    NOTE: this Gazebo model makes use of the same set of parameter files as the
+    main xacro macro (in ur_description). It is therefor possible to use the
+    kinematic calibration exported from a REAL UR robot. Please refer to the
+    ur_macro.xacro in ur_description for more information about this.
+
+    Main author of the migration to yaml configs: Ludovic Delval.
+
+    Contributors to previous versions (in no particular order):
+
+     - Felix Messmer
+     - Kelsey Hawkins
+     - Shaun Edwards
+     - Alexander Bubeck
+     - Nadia Hammoudeh Garcia
+     - G. vd. Hoorn
+     - Dave Niewinski
+     - Andy Zelenak
+     - Miguel Prada
+     - Mathias Luedtke
+     - Hans-Joachim Krauch
+     - Felix Exner
+  -->
+
+
+  <!-- Definition of the main macro -->
+  <xacro:macro name="ur_robot_gazebo" params="
+   prefix
+   joint_limits_parameters_file
+   kinematics_parameters_file
+   physical_parameters_file
+   visual_parameters_file
+   transmission_hw_interface:=hardware_interface/EffortJointInterface
+   safety_limits:=false safety_pos_margin:=0.15 safety_k_position:=20"
+  >
+    <!--
+      Import the xacro macro for the REAL robot (which we'll augment with Gazebo
+      specific elements in the wrapper macro below).
+
+      NOTE: this imports the '_macro.xacro' from ur_description, as that contains
+      the definitions for the real robot.
+    -->
+  <xacro:include filename="$(find ur_description)/urdf/inc/ur_macro.xacro"/>
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_85_gripper.urdf.xacro" />
+
+
+    <!-- Instantiate model for the REAL robot. -->
+    <xacro:ur_robot
+      prefix="${prefix}"
+      joint_limits_parameters_file="${joint_limits_parameters_file}"
+      kinematics_parameters_file="${kinematics_parameters_file}"
+      physical_parameters_file="${physical_parameters_file}"
+      visual_parameters_file="${visual_parameters_file}"
+      transmission_hw_interface="${transmission_hw_interface}"
+      safety_limits="${safety_limits}"
+      safety_pos_margin="${safety_pos_margin}"
+      safety_k_position="${safety_k_position}"
+    />
+
+    <!-- Configure self collision properties per link -->
+    <gazebo reference="${prefix}shoulder_link">
+      <selfCollide>true</selfCollide>
+    </gazebo>
+    <gazebo reference="${prefix}upper_arm_link">
+      <selfCollide>true</selfCollide>
+    </gazebo>
+    <gazebo reference="${prefix}forearm_link">
+      <selfCollide>true</selfCollide>
+    </gazebo>
+    <gazebo reference="${prefix}wrist_1_link">
+      <selfCollide>true</selfCollide>
+    </gazebo>
+    <gazebo reference="${prefix}wrist_3_link">
+      <selfCollide>true</selfCollide>
+    </gazebo>
+    <gazebo reference="${prefix}wrist_2_link">
+      <selfCollide>true</selfCollide>
+    </gazebo>
+    <gazebo reference="${prefix}ee_link">
+      <selfCollide>true</selfCollide>
+    </gazebo>
+
+    <!--
+      Inject Gazebo ROS Control plugin, which allows us to use ros_control
+      controllers to control the virtual robot hw.
+    -->
+    <gazebo>
+      <plugin name="ros_control" filename="libgazebo_ros_control.so">
+        <!--robotNamespace>/</robotNamespace-->
+        <!--robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType-->
+      </plugin>
+    </gazebo>
+     <xacro:include filename="$(find ur_description)/urdf/_d435.urdf.xacro" />
+      <xacro:sensor_d435 parent="wrist_3_link">
+    <!--<origin xyz="0.00830209 0.0806095 0.0203794" rpy="0.0850959 0.032743 -3.07408"/>-->
+    <origin xyz="0.0 -0.05 -0.07" rpy="0.0 -1.57 1.57"/>
+  </xacro:sensor_d435>
+    <gazebo reference="camera_link">
+    <sensor type="camera" name="camera1">
+      <update_rate>30.0</update_rate>
+      <camera name="head">
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>800</width>
+          <height>800</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <!-- Noise is sampled independently per pixel on each frame.
+               That pixel's noise value is added to each of its color
+               channels, which at that point lie in the range [0,1]. -->
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+      <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>30.0</updateRate>
+        <cameraName>rrbot/camera1</cameraName>
+        <imageTopicName>image_raw</imageTopicName>
+        <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+        <frameName>camera_link</frameName>
+        <hackBaseline>0.07</hackBaseline>
+        <distortionK1>0.0</distortionK1>
+        <distortionK2>0.0</distortionK2>
+        <distortionK3>0.0</distortionK3>
+        <distortionT1>0.0</distortionT1>
+        <distortionT2>0.0</distortionT2>
+      </plugin>
+    </sensor>
+  </gazebo>
+    <link name="robotiq_coupler">
+    <visual>
+      <geometry>
+        <mesh filename="package://robotiq_description/meshes/robotiq_85_coupler.stl" />
+      </geometry>
+      <material name="flat_black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robotiq_description/meshes/robotiq_85_coupler.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="2.073e-05   1.45286e-03  -1.1049e-03" rpy="0 0 0" />
+      <mass value="0.168" />
+      <inertia ixx="6.69695624e-05" ixy="5.21511788e-09" ixz="-2.74383009e-08" 
+               iyy="7.85088161e-05" iyz="5.41105193e-07" izz="1.41819717e-04"/>
+    </inertial>
+  </link>
+
+  <joint name="robotiq_coupler_joint" type="fixed">
+    <origin xyz="0 0 0.004" rpy="0 0 ${-pi/2.0}" />
+    <parent link="tool0"/>
+    <child link="robotiq_coupler"/>
+  </joint>
+  <gazebo reference="robotiq_coupler">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+  
+  <!-- Equivalent to the OpenRAVE manipulator denso_robotiq_85_gripper -->
+  <!-- <link name="denso_robotiq_85_gripper" /> -->
+  <!-- <joint name="manipulator_dummy_joint" type="fixed"> -->
+  <!--   <origin xyz="0 0 0.1441" rpy="0 0 0" /> -->
+  <!--   <parent link="robotiq_coupler"/> -->
+  <!--   <child link="denso_robotiq_85_gripper"/> -->
+  <!-- </joint> -->
+  
+  <!-- Attach the robotiq 85 gripper -->
+  <xacro:robotiq_85_gripper prefix="" parent="robotiq_coupler" >
+    <origin xyz="0 0 0.004" rpy="0 ${-pi/2} ${pi}"/>
+  </xacro:robotiq_85_gripper> 
+  
+  <!-- Gazebo FT sensor plugin -->
+  <gazebo reference="wrist_3_joint">
+    <provideFeedback>true</provideFeedback>
+  </gazebo>
+  <gazebo>
+    <plugin name="ft_sensor_plugin" filename="libgazebo_ros_ft_sensor.so">
+      <updateRate>250.0</updateRate>
+      <topicName>ft_sensor/raw</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <jointName>wrist_3_joint</jointName>
+    </plugin>
+  </gazebo>
+  
+  <!-- Gazebo grasping plugin -->
+  <gazebo>
+    <gripper name="gazebo_gripper">
+      <grasp_check>
+        <attach_steps>2</attach_steps>    <!-- default: 20 -->
+        <detach_steps>2</detach_steps>    <!-- default: 40 -->
+        <min_contact_count>3</min_contact_count>
+      </grasp_check>
+      <gripper_link>robotiq_85_left_finger_tip_link</gripper_link>
+      <gripper_link>robotiq_85_right_finger_tip_link</gripper_link>
+      <palm_link>robotiq_85_base_link</palm_link>
+    </gripper>
+  </gazebo>
+  </xacro:macro>
+</robot>
